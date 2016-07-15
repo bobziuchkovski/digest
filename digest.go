@@ -44,11 +44,13 @@
 package digest
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -95,7 +97,14 @@ func parseChallenge(input string) (*challenge, error) {
 		return nil, ErrBadChallenge
 	}
 	s = strings.Trim(s[7:], ws)
-	sl := strings.Split(s, ", ")
+	sl := strings.Split(s, "\", ")
+	for i := range sl {
+		str := sl[i]
+		if !strings.HasSuffix(str, "\"") {
+			str = sl[i] + "\""
+		}
+		sl[i] = str
+	}
 	c := &challenge{
 		Algorithm: "MD5",
 	}
@@ -239,6 +248,11 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	for k, s := range req.Header {
 		req2.Header[k] = s
 	}
+	buf, _ := ioutil.ReadAll(req.Body)
+	rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
+	rdr2 := ioutil.NopCloser(bytes.NewBuffer(buf))
+	req2.Body = rdr1
+	req.Body = rdr2
 
 	// Make a request to get the 401 that contains the challenge.
 	resp, err := t.Transport.RoundTrip(req)

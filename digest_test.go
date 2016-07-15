@@ -24,6 +24,8 @@ package digest
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var cred = &credentials{
@@ -87,4 +89,12 @@ func TestResp(t *testing.T) {
 	if r1 != "6629fae49393a05397450978507c4ef1" {
 		t.Fail()
 	}
+}
+
+func TestParseChallengeWithComma(t *testing.T) {
+	str := `Digest realm="If you forgot password, write", nonce="my_nonce", opaque="my_opaque", qop="auth"`
+
+	challenge, err := parseChallenge(str)
+	assert.Nil(t, err)
+	assert.Equal(t, challenge.Realm, "If you forgot password, write")
 }
