@@ -92,7 +92,7 @@ func nonce() string {
 	buf := make([]byte, 12)
 	_, err := io.ReadFull(rand.Reader, buf)
 	if err != nil {
-		panic("crypto/rand read failed")
+		return ""
 	}
 	return base64.StdEncoding.EncodeToString(buf)
 }
