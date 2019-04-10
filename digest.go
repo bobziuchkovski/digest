@@ -90,12 +90,9 @@ type challenge struct {
 
 func nonce() string {
 	buf := make([]byte, 12)
-	for i := 0; i < len(buf); {
-		n, err := rand.Read(buf[i:])
-		if err != nil {
-			panic("rand.Read() failed")
-		}
-		i += n
+	_, err := io.ReadFull(rand.Reader, buf)
+	if err != nil {
+		panic("crypto/rand read failed")
 	}
 	return base64.StdEncoding.EncodeToString(buf)
 }
