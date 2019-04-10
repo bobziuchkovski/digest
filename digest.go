@@ -182,7 +182,7 @@ func (c *credentials) authorize() (string, error) {
 	if c.MessageQop != "auth" && c.MessageQop != "" {
 		return "", ErrAlgNotImplemented
 	}
-	resp, err := c.resp()
+	resp, err := c.resp("")
 	if err != nil {
 		return "", ErrAlgNotImplemented
 	}
