@@ -46,7 +46,6 @@ package digest
 import (
 	"crypto/md5"
 	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -86,15 +85,6 @@ type challenge struct {
 	Stale     string
 	Algorithm string
 	Qop       string
-}
-
-func nonce() string {
-	buf := make([]byte, 12)
-	_, err := io.ReadFull(rand.Reader, buf)
-	if err != nil {
-		return ""
-	}
-	return base64.StdEncoding.EncodeToString(buf)
 }
 
 func parseChallenge(input string) (*challenge, error) {
@@ -170,13 +160,9 @@ func (c *credentials) ha2() string {
 func (c *credentials) resp(cnonce string) (string, error) {
 	c.NonceCount++
 	if c.MessageQop == "auth" {
-		if cnonce != "" {
-			c.Cnonce = cnonce
-		} else {
-			b := make([]byte, 8)
-			io.ReadFull(rand.Reader, b)
-			c.Cnonce = fmt.Sprintf("%x", b)[:16]
-		}
+		b := make([]byte, 8)
+		io.ReadFull(rand.Reader, b)
+		c.Cnonce = fmt.Sprintf("%x", b)[:16]
 		return kd(c.ha1(), fmt.Sprintf("%s:%08x:%s:%s:%s",
 			c.Nonce, c.NonceCount, c.Cnonce, c.MessageQop, c.ha2())), nil
 	} else if c.MessageQop == "" {
@@ -196,7 +182,7 @@ func (c *credentials) authorize() (string, error) {
 	if c.MessageQop != "auth" && c.MessageQop != "" {
 		return "", ErrAlgNotImplemented
 	}
-	resp, err := c.resp(nonce())
+	resp, err := c.resp()
 	if err != nil {
 		return "", ErrAlgNotImplemented
 	}
