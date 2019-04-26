@@ -65,6 +65,16 @@ type Transport struct {
 	Username  string
 	Password  string
 	Transport http.RoundTripper
+
+	Trigger             *Trigger
+	AuthenticateHeader  string
+	AuthorizationHeader string
+}
+
+// Trigger is the trigger to try digest authentication.
+type Trigger struct {
+	Status int
+	Error  string
 }
 
 // NewTransport creates a new digest transport using the http.DefaultTransport.
@@ -72,8 +82,26 @@ func NewTransport(username, password string) *Transport {
 	t := &Transport{
 		Username: username,
 		Password: password,
+		Trigger: &Trigger{
+			Status: http.StatusUnauthorized,
+			Error:  http.StatusText(http.StatusUnauthorized),
+		},
+		AuthenticateHeader:  "WWW-Authenticate",
+		AuthorizationHeader: "Authorization",
 	}
 	t.Transport = http.DefaultTransport
+	return t
+}
+
+// NewProxyTransport creates a new digest transport for proxy authentication using the http.DefaultTransport.
+func NewProxyTransport(username, password string) *Transport {
+	t := NewTransport(username, password)
+	t.Trigger = &Trigger{
+		Status: http.StatusProxyAuthRequired,
+		Error:  http.StatusText(http.StatusProxyAuthRequired),
+	}
+	t.AuthenticateHeader = "Proxy-Authenticate"
+	t.AuthorizationHeader = "Proxy-Authorization"
 	return t
 }
 
@@ -240,12 +268,12 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		req2.Header[k] = s
 	}
 
-	// Make a request to get the 401 that contains the challenge.
+	// Make a request to get the 401/407 that contains the challenge.
 	resp, err := t.Transport.RoundTrip(req)
-	if err != nil || resp.StatusCode != 401 {
+	if err != nil && err.Error() != t.Trigger.Error || resp.StatusCode != t.Trigger.Status {
 		return resp, err
 	}
-	chal := resp.Header.Get("WWW-Authenticate")
+	chal := resp.Header.Get(t.AuthenticateHeader)
 	c, err := parseChallenge(chal)
 	if err != nil {
 		return resp, err
@@ -262,7 +290,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp.Body.Close()
 
 	// Make authenticated request.
-	req2.Header.Set("Authorization", auth)
+	req2.Header.Set(t.AuthorizationHeader, auth)
 	return t.Transport.RoundTrip(req2)
 }
 
