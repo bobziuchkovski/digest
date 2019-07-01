@@ -65,6 +65,7 @@ type Transport struct {
 	Username  string
 	Password  string
 	Transport http.RoundTripper
+	Jar       http.CookieJar
 }
 
 // NewTransport creates a new digest transport using the http.DefaultTransport.
@@ -241,7 +242,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	// Make a request to get the 401 that contains the challenge.
-	resp, err := t.Transport.RoundTrip(req)
+	resp, err := t.sendReceive(req)
 	if err != nil || resp.StatusCode != 401 {
 		return resp, err
 	}
@@ -263,7 +264,22 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// Make authenticated request.
 	req2.Header.Set("Authorization", auth)
-	return t.Transport.RoundTrip(req2)
+	return t.sendReceive(req2)
+}
+
+func (t *Transport) sendReceive(req *http.Request) (*http.Response, error) {
+	if t.Jar != nil {
+		for _, cookie := range t.Jar.Cookies(req.URL) {
+			req.AddCookie(cookie)
+		}
+	}
+	response, err := t.Transport.RoundTrip(req)
+	if t.Jar != nil && err == nil {
+		if rc := response.Cookies(); len(rc) > 0 {
+			t.Jar.SetCookies(req.URL, rc)
+		}
+	}
+	return response, err
 }
 
 // Client returns an HTTP client that uses the digest transport.
