@@ -235,6 +235,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Copy the request so we don't modify the input.
 	req2 := new(http.Request)
 	*req2 = *req
+	req2.Body, _ = req.GetBody()
 	req2.Header = make(http.Header)
 	for k, s := range req.Header {
 		req2.Header[k] = s
