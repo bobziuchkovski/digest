@@ -231,17 +231,10 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.Transport == nil {
 		return nil, ErrNilTransport
 	}
-
-	// Copy the request so we don't modify the input.
-	req2 := new(http.Request)
-	*req2 = *req
-	req2.Header = make(http.Header)
-	for k, s := range req.Header {
-		req2.Header[k] = s
-	}
+	req2, _ := http.NewRequest("GET", req.URL.String(), nil)
 
 	// Make a request to get the 401 that contains the challenge.
-	resp, err := t.Transport.RoundTrip(req)
+	resp, err := t.Transport.RoundTrip(req2)
 	if err != nil || resp.StatusCode != 401 {
 		return resp, err
 	}
@@ -252,7 +245,7 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	// Form credentials based on the challenge.
-	cr := t.newCredentials(req2, c)
+	cr := t.newCredentials(req, c)
 	auth, err := cr.authorize()
 	if err != nil {
 		return resp, err
@@ -262,8 +255,8 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp.Body.Close()
 
 	// Make authenticated request.
-	req2.Header.Set("Authorization", auth)
-	return t.Transport.RoundTrip(req2)
+	req.Header.Set("Authorization", auth)
+	return t.Transport.RoundTrip(req)
 }
 
 // Client returns an HTTP client that uses the digest transport.
