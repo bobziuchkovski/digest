@@ -119,7 +119,7 @@ func parseChallenge(input string) (*challenge, error) {
 			//TODO(gavaletz) should be an array of strings?
 			c.Qop = strings.Trim(r[1], qs)
 		default:
-			return nil, ErrBadChallenge
+			continue // any unrecognised parameters should be ignored
 		}
 	}
 	return c, nil
